@@ -1,13 +1,13 @@
 interface SearchBoxProps {
-  onChange: (value: string) => void;
+  onSearch: (value: string) => void;
 }
 
-export default function SearchBox({ onChange }: SearchBoxProps) {
+export default function SearchBox({ onSearch }: SearchBoxProps) {
   return (
     <input
       type="text"
       placeholder="Search notes"
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onSearch(e.target.value)}
     />
   );
 }

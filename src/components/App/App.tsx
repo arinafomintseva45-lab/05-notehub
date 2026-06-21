@@ -1,38 +1,53 @@
 import { useState } from "react";
-import css from "./App.module.css";
-
+import { useDebouncedCallback } from "use-debounce";
 import SearchBox from "../SearchBox/SearchBox";
 import NoteList from "../NoteList/NoteList";
 import Pagination from "../Pagination/Pagination";
-import { Modal } from "../Modal/Modal";
-import { NoteForm } from "../NoteForm/NoteForm";
+import Modal from "../Modal/Modal";
+import NoteForm from "../NoteForm/NoteForm";
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchNotes } from "../../services/noteService";
+
+import css from "./App.module.css";
 
 export default function App() {
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [page, setPage] = useState<number>(1);
+  const [search, setSearch] = useState<string>("");
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+
+  const debouncedSearch = useDebouncedCallback((value: string) => {
+    setSearch(value);
+    setPage(1);
+  }, 500);
+
+  const { data } = useQuery({
+    queryKey: ["notes", page, search],
+    queryFn: () => fetchNotes({ page, search }),
+    placeholderData: (prev) => prev,
+  });
 
   return (
     <div className={css.app}>
       <header className={css.toolbar}>
-        <SearchBox onChange={setSearch} />
+        <SearchBox onSearch={debouncedSearch} />
 
-        <Pagination
-          page={page}
-          setPage={setPage}
-          pageCount={10}
-        />
+        {data && data.totalPages > 1 && (
+          <Pagination
+            page={page}
+            totalPages={data.totalPages}
+            onChange={setPage}
+          />
+        )}
 
-        <button onClick={() => setIsModalOpen(true)}>
-          Create note +
-        </button>
+        <button onClick={() => setIsOpen(true)}>Create note +</button>
       </header>
 
-      <NoteList page={page} search={search} />
+      {data?.notes?.length > 0 && <NoteList notes={data.notes} />}
 
-      {isModalOpen && (
-        <Modal onClose={() => setIsModalOpen(false)}>
-          <NoteForm onClose={() => setIsModalOpen(false)} />
+      {isOpen && (
+        <Modal onClose={() => setIsOpen(false)}>
+          <NoteForm onClose={() => setIsOpen(false)} />
         </Modal>
       )}
     </div>

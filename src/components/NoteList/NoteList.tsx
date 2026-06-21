@@ -1,22 +1,20 @@
-import { useEffect, useState } from "react";
-import { fetchNotes } from "../../services/noteService";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { deleteNote } from "../../services/noteService";
 import type { Note } from "../../types/note";
 
 interface NoteListProps {
-  page: number;
-  search: string;
+  notes: Note[];
 }
 
-export default function NoteList({ page, search }: NoteListProps) {
-  const [notes, setNotes] = useState<Note[]>([]);
+export default function NoteList({ notes }: NoteListProps) {
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchNotes(page, search).then((data) => {
-      setNotes(data.notes);
-    });
-  }, [page, search]);
-
-  if (notes.length === 0) return <p>No notes</p>;
+  const mutation = useMutation({
+    mutationFn: deleteNote,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+  });
 
   return (
     <ul>
@@ -25,6 +23,10 @@ export default function NoteList({ page, search }: NoteListProps) {
           <h2>{note.title}</h2>
           <p>{note.content}</p>
           <span>{note.tag}</span>
+
+          <button onClick={() => mutation.mutate(note.id)}>
+            Delete
+          </button>
         </li>
       ))}
     </ul>
