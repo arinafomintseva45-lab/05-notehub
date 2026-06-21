@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { useQuery } from "@tanstack/react-query";
+
 import SearchBox from "../SearchBox/SearchBox";
 import NoteList from "../NoteList/NoteList";
 import Pagination from "../Pagination/Pagination";
 import Modal from "../Modal/Modal";
 import NoteForm from "../NoteForm/NoteForm";
 
-import { useQuery } from "@tanstack/react-query";
 import { fetchNotes } from "../../services/noteService";
 
 import css from "./App.module.css";
@@ -14,40 +15,57 @@ import css from "./App.module.css";
 export default function App() {
   const [page, setPage] = useState<number>(1);
   const [search, setSearch] = useState<string>("");
-  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
+  // ✅ debounce (REQUIRED)
   const debouncedSearch = useDebouncedCallback((value: string) => {
     setSearch(value);
-    setPage(1);
+    setPage(1); // IMPORTANT: reset page on search
   }, 500);
 
-  const { data } = useQuery({
+  // ✅ TanStack Query (REQUIRED)
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["notes", page, search],
     queryFn: () => fetchNotes({ page, search }),
     placeholderData: (prev) => prev,
   });
 
+  // ✅ safe data handling (FIX TS ERROR)
+  const notes = data?.notes ?? [];
+  const totalPages = data?.totalPages ?? 0;
+
   return (
     <div className={css.app}>
       <header className={css.toolbar}>
+        {/* SEARCH */}
         <SearchBox onSearch={debouncedSearch} />
 
-        {data && data.totalPages > 1 && (
+        {/* PAGINATION (only if >1 page) */}
+        {totalPages > 1 && (
           <Pagination
             page={page}
-            totalPages={data.totalPages}
+            totalPages={totalPages}
             onChange={setPage}
           />
         )}
 
-        <button onClick={() => setIsOpen(true)}>Create note +</button>
+        {/* CREATE BUTTON */}
+        <button onClick={() => setIsModalOpen(true)}>
+          Create note +
+        </button>
       </header>
 
-      {data?.notes?.length > 0 && <NoteList notes={data.notes} />}
+      {/* LOADING / ERROR (good practice, sometimes required) */}
+      {isLoading && <p>Loading...</p>}
+      {isError && <p>Error loading notes</p>}
 
-      {isOpen && (
-        <Modal onClose={() => setIsOpen(false)}>
-          <NoteForm onClose={() => setIsOpen(false)} />
+      {/* NOTE LIST (ONLY IF NOTES EXIST) */}
+      {notes.length > 0 && <NoteList notes={notes} />}
+
+      {/* MODAL */}
+      {isModalOpen && (
+        <Modal onClose={() => setIsModalOpen(false)}>
+          <NoteForm onClose={() => setIsModalOpen(false)} />
         </Modal>
       )}
     </div>
